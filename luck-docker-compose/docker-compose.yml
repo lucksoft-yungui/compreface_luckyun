@@ -1,0 +1,132 @@
+volumes:
+  postgres-data:
+
+services:
+  compreface-postgres-db:
+    profiles:
+      - internal-postgres
+    image: ${registry}compreface-postgres-db:${POSTGRES_VERSION}
+    restart: always
+    container_name: "compreface-postgres-db"
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${postgres_username}
+      - POSTGRES_PASSWORD=${postgres_password}
+      - POSTGRES_DB=${postgres_db}
+    volumes:
+      - ${postgres_storage_path}:/var/lib/postgresql/data
+
+  compreface-admin:
+    restart: always
+    image: ${backend_registry}compreface-admin:${ADMIN_VERSION}
+    container_name: "compreface-admin"
+    ports:
+      - "8081:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - POSTGRES_USER=${postgres_username}
+      - POSTGRES_PASSWORD=${postgres_password}
+      - POSTGRES_URL=jdbc:postgresql://${postgres_host}:${postgres_port}/${postgres_db}
+      - SPRING_PROFILES_ACTIVE=dev
+      - ENABLE_EMAIL_SERVER=${enable_email_server}
+      - EMAIL_HOST=${email_host}
+      - EMAIL_USERNAME=${email_username}
+      - EMAIL_FROM=${email_from}
+      - EMAIL_PASSWORD=${email_password}
+      - ADMIN_JAVA_OPTS=${compreface_admin_java_options}
+      - MAX_FILE_SIZE=${max_file_size}
+      - MAX_REQUEST_SIZE=${max_request_size}B
+    depends_on:
+      - compreface-api
+
+  compreface-api:
+    restart: always
+    image: ${backend_registry}compreface-api:${API_VERSION}
+    container_name: "compreface-api"
+    ports:
+      - "8082:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - POSTGRES_USER=${postgres_username}
+      - POSTGRES_PASSWORD=${postgres_password}
+      - POSTGRES_URL=jdbc:postgresql://${postgres_host}:${postgres_port}/${postgres_db}
+      - SPRING_PROFILES_ACTIVE=dev
+      - API_JAVA_OPTS=${compreface_api_java_options}
+      - SAVE_IMAGES_TO_DB=${save_images_to_db}
+      - MAX_FILE_SIZE=${max_file_size}
+      - MAX_REQUEST_SIZE=${max_request_size}B
+      - CONNECTION_TIMEOUT=${connection_timeout:-10000}
+      - READ_TIMEOUT=${read_timeout:-60000}
+
+  compreface-core-cpu:
+    profiles:
+      - cpu
+    restart: always
+    image: ${registry}compreface-core:${CORE_CPU_VERSION}
+    container_name: "compreface-core"
+    ports:
+      - "3000:3000"
+    networks:
+      default:
+        aliases:
+          - compreface-core
+    environment:
+      - ML_PORT=3000
+      - IMG_LENGTH_LIMIT=${max_detect_size}
+      - UWSGI_PROCESSES=${uwsgi_processes:-2}
+      - UWSGI_THREADS=${uwsgi_threads:-1}
+    healthcheck:
+      test: curl --fail http://localhost:3000/healthcheck || exit 1
+      interval: 10s
+      retries: 0
+      start_period: 0s
+      timeout: 1s
+
+  compreface-core-gpu:
+    profiles:
+      - gpu
+    restart: always
+    image: ${registry}compreface-core:${CORE_GPU_VERSION}
+    container_name: "compreface-core"
+    ports:
+      - "3000:3000"
+    networks:
+      default:
+        aliases:
+          - compreface-core
+    environment:
+      - ML_PORT=3000
+      - IMG_LENGTH_LIMIT=${max_detect_size}
+      - UWSGI_PROCESSES=${uwsgi_processes:-2}
+      - UWSGI_THREADS=${uwsgi_threads:-1}
+      - GPU_IDX=${CORE_GPU_IDX:-0}
+    healthcheck:
+      test: curl --fail http://localhost:3000/healthcheck || exit 1
+      interval: 10s
+      retries: 0
+      start_period: 0s
+      timeout: 1s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  luck-ui:
+    restart: always
+    image: ${ui_registry}luck-ui:${UI_VERSION}
+    container_name: "luck-ui"
+    ports:
+      - "8000:80"
+    environment:
+      - ADMIN_UPSTREAM=${luck_ui_admin_upstream}
+      - API_UPSTREAM=${luck_ui_api_upstream}
+      - CORE_UPSTREAM=${luck_ui_core_upstream}
+    depends_on:
+      - compreface-admin
+      - compreface-api

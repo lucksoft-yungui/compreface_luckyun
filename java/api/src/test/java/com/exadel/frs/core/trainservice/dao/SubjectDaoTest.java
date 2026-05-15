@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Pageable;
 
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -82,6 +83,7 @@ class SubjectDaoTest extends EmbeddedPostgreSQLTest {
     void testDeleteSubjectByName() {
         var subject = dbHelper.insertSubject("subject");
         var embedding = dbHelper.insertEmbeddingWithImg(subject);
+        var imgId = embedding.getImg().getId();
 
         subjectDao.deleteSubjectByName(subject.getApiKey(), subject.getSubjectName());
 
@@ -89,6 +91,7 @@ class SubjectDaoTest extends EmbeddedPostgreSQLTest {
         assertThat(embeddingRepository.findBySubjectId(subject.getId())).isEmpty();
         // no images
         assertThat(imgRepository.getImgByEmbeddingId(subject.getApiKey(), embedding.getId())).isEmpty();
+        assertThat(imgRepository.findById(imgId)).isEmpty();
         // no subject
         assertThat(subjectRepository.findById(subject.getId())).isEmpty();
     }
@@ -98,6 +101,7 @@ class SubjectDaoTest extends EmbeddedPostgreSQLTest {
         var subject = dbHelper.insertSubject("subject");
         dbHelper.insertEmbeddingNoImg(subject);
         var embedding = dbHelper.insertEmbeddingWithImg(subject);
+        var imgId = embedding.getImg().getId();
 
         int removed = subjectDao.removeAllSubjectEmbeddings(subject.getApiKey(), subject.getSubjectName());
         assertThat(removed).isEqualTo(2);
@@ -106,6 +110,7 @@ class SubjectDaoTest extends EmbeddedPostgreSQLTest {
         assertThat(embeddingRepository.findBySubjectId(subject.getId())).isEmpty();
         // no images
         assertThat(imgRepository.getImgByEmbeddingId(subject.getApiKey(), embedding.getId())).isEmpty();
+        assertThat(imgRepository.findById(imgId)).isEmpty();
         // the subject doesn't exist anymore
         assertThat(subjectRepository.findById(subject.getId())).isEmpty();
     }
@@ -156,15 +161,19 @@ class SubjectDaoTest extends EmbeddedPostgreSQLTest {
     void testDeleteSubjectsByApiKey() {
         var model = dbHelper.insertModel();
         int count = 3;
+        var imgIds = new ArrayList<UUID>();
 
         for (int i = 0; i < count; i++) {
             var subject = dbHelper.insertSubject(model, "subject" + i);
-            dbHelper.insertEmbeddingWithImg(subject);
+            var embedding = dbHelper.insertEmbeddingWithImg(subject);
+            imgIds.add(embedding.getImg().getId());
+            assertThat(imgRepository.findById(embedding.getImg().getId())).isPresent();
         }
 
         var deleted = subjectDao.deleteSubjectsByApiKey(model.getApiKey());
         assertThat(deleted).isEqualTo(count);
         assertThat(embeddingRepository.findBySubjectApiKey(model.getApiKey(), Pageable.unpaged()).isEmpty()).isTrue();
+        assertThat(imgIds).allSatisfy(imgId -> assertThat(imgRepository.findById(imgId)).isEmpty());
     }
 
     @Test

@@ -40,10 +40,11 @@ public class SubjectDao {
         }
 
         final var subject = subjectOptional.get();
+        final var imgIds = imgRepository.findIdsBySubjectId(subject.getId());
 
         // order is important
         embeddingRepository.deleteBySubjectId(subject.getId());
-        imgRepository.deleteBySubjectId(subject.getId());
+        deleteOrphanImages(imgIds);
         subjectRepository.delete(subject);
 
         return subject;
@@ -58,9 +59,10 @@ public class SubjectDao {
         }
 
         final var subject = subjectOptional.get();
+        final var imgIds = imgRepository.findIdsBySubjectId(subject.getId());
 
         int deleted = embeddingRepository.deleteBySubjectId(subject.getId());
-        imgRepository.deleteBySubjectId(subject.getId());
+        deleteOrphanImages(imgIds);
         subjectRepository.delete(subject);
 
         return deleted;
@@ -68,8 +70,9 @@ public class SubjectDao {
 
     @Transactional
     public int removeAllSubjectEmbeddings(final String apiKey) {
+        final var imgIds = imgRepository.findIdsBySubjectApiKey(apiKey);
         int deleted = embeddingRepository.deleteBySubjectApiKey(apiKey);
-        imgRepository.deleteBySubjectApiKey(apiKey);
+        deleteOrphanImages(imgIds);
         subjectRepository.deleteByApiKey(apiKey);
 
         return deleted;
@@ -87,11 +90,8 @@ public class SubjectDao {
         // in case it was embedding with img and no more embeddings were calculated for img, we should also remove img
         if (embedding.getImg() != null && embedding.getImg().getId() != null) {
             UUID imgId = embedding.getImg().getId();
-            final int embeddingsWithImg = imgRepository.countRelatedEmbeddings(imgId);
-            if (embeddingsWithImg == 0) {
-                // no more embeddings calculated for img, no need to keep it
-                imgRepository.deleteById(imgId);
-            }
+            embeddingRepository.flush();
+            deleteOrphanImages(List.of(imgId));
         }
 
         return embedding;
@@ -140,8 +140,9 @@ public class SubjectDao {
     @Transactional
     public int deleteSubjectsByApiKey(final String apiKey) {
         // order is important
+        final var imgIds = imgRepository.findIdsBySubjectApiKey(apiKey);
         embeddingRepository.deleteBySubjectApiKey(apiKey);
-        imgRepository.deleteBySubjectApiKey(apiKey);
+        deleteOrphanImages(imgIds);
         return subjectRepository.deleteByApiKey(apiKey);
     }
 
@@ -192,5 +193,11 @@ public class SubjectDao {
         }
 
         return embeddingRepository.save(embedding);
+    }
+
+    private void deleteOrphanImages(Collection<UUID> imgIds) {
+        if (imgIds != null && !imgIds.isEmpty()) {
+            imgRepository.deleteOrphansByIds(imgIds);
+        }
     }
 }
