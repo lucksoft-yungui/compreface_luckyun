@@ -28,6 +28,12 @@ import type { Model } from '../types';
 
 const { Title } = Typography;
 
+const MODEL_TYPE_META: Record<string, { color: string; label: string }> = {
+  RECOGNITION: { color: 'blue', label: '人脸识别' },
+  DETECTION: { color: 'green', label: '人脸检测' },
+  VERIFICATION: { color: 'orange', label: '人脸验证' },
+};
+
 export function ApplicationDetailPage() {
   const { appId } = useParams<{ appId: string }>();
   const navigate = useNavigate();
@@ -90,19 +96,16 @@ export function ApplicationDetailPage() {
     });
   };
 
-  const typeColors: Record<string, string> = {
-    RECOGNITION: 'blue',
-    DETECTION: 'green',
-    VERIFICATION: 'orange',
-  };
-
   const columns = [
     { title: '模型名称', dataIndex: 'name', key: 'name' },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (type: string) => <Tag color={typeColors[type] || 'default'}>{type}</Tag>,
+      render: (type: string) => {
+        const meta = MODEL_TYPE_META[type];
+        return <Tag color={meta?.color || 'default'}>{meta ? `${meta.label} (${type})` : type}</Tag>;
+      },
     },
     {
       title: 'API Key',
@@ -138,6 +141,15 @@ export function ApplicationDetailPage() {
                 人脸识别
               </Button>
             </>
+          )}
+          {record.type === 'DETECTION' && (
+            <Button
+              type="link"
+              icon={<ScanOutlined />}
+              onClick={() => navigate(`/apps/${appId}/models/${record.id}/detect`)}
+            >
+              正脸校验
+            </Button>
           )}
           <Popconfirm title="确定删除此模型？" onConfirm={() => handleDelete(record.id)}>
             <Button type="link" danger icon={<DeleteOutlined />}>
@@ -182,11 +194,10 @@ export function ApplicationDetailPage() {
           </Form.Item>
           <Form.Item name="type" label="模型类型" rules={[{ required: true }]}>
             <Select
-              options={[
-                { label: 'RECOGNITION - 人脸识别', value: 'RECOGNITION' },
-                { label: 'DETECTION - 人脸检测', value: 'DETECTION' },
-                { label: 'VERIFICATION - 人脸验证', value: 'VERIFICATION' },
-              ]}
+              options={Object.entries(MODEL_TYPE_META).map(([value, meta]) => ({
+                label: `${value} - ${meta.label}`,
+                value,
+              }))}
             />
           </Form.Item>
         </Form>

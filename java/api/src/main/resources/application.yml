@@ -81,6 +81,14 @@ statistic:
     cron-expression: ${MODEL_STATISTIC_CRON_EXPRESSION:0 0 * ? * *}
 
 app:
+  face:
+    front-check:
+      max-yaw: ${FRONT_FACE_MAX_YAW:15}
+      max-pitch: ${FRONT_FACE_MAX_PITCH:15}
+      max-roll: ${FRONT_FACE_MAX_ROLL:20}
+      lenient-max-yaw: ${FRONT_FACE_LENIENT_MAX_YAW:89}
+      lenient-max-pitch: ${FRONT_FACE_LENIENT_MAX_PITCH:89}
+      lenient-max-roll: ${FRONT_FACE_LENIENT_MAX_ROLL:89}
   feign:
     appery-io:
       url: https://api.appery.io/rest/1/db/collections

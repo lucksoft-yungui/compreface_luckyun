@@ -1,33 +1,40 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 4200,
-    proxy: {
-      '/admin': {
-        target: 'http://172.16.0.162:8081',
-        changeOrigin: true,
-      },
-      '/api': {
-        target: 'http://172.16.0.162:8082',
-        changeOrigin: true,
-      },
-      '/core': {
-        target: 'http://172.16.0.162:3000',
-        changeOrigin: true,
-      },
-    },
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          antd: ['antd', '@ant-design/icons'],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, '.', '');
+  const adminProxyTarget = env.VITE_ADMIN_PROXY_TARGET || 'http://localhost:8081';
+  const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8082';
+  const coreProxyTarget = env.VITE_CORE_PROXY_TARGET || 'http://localhost:3000';
+
+  return {
+    plugins: [react()],
+    server: {
+      port: 4200,
+      proxy: {
+        '/admin': {
+          target: adminProxyTarget,
+          changeOrigin: true,
+        },
+        '/api': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+        },
+        '/core': {
+          target: coreProxyTarget,
+          changeOrigin: true,
         },
       },
     },
-  },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'react-router-dom'],
+            antd: ['antd', '@ant-design/icons'],
+          },
+        },
+      },
+    },
+  };
 });

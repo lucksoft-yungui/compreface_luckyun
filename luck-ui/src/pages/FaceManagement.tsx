@@ -124,6 +124,7 @@ export function FaceManagementPage() {
   const [facesPage, setFacesPage] = useState(1);
   const [facesPageSize, setFacesPageSize] = useState(20);
   const [facesTotal, setFacesTotal] = useState(0);
+  const [selectedFaceKeys, setSelectedFaceKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [facesLoading, setFacesLoading] = useState(false);
 
@@ -191,6 +192,7 @@ export function FaceManagementPage() {
     } else {
       setFaces([]);
       setFacesTotal(0);
+      setSelectedFaceKeys([]);
     }
   }, [selectedSubject, facesPage, facesPageSize, fetchFaces]);
 
@@ -262,7 +264,10 @@ export function FaceManagementPage() {
       await deleteAllFacesOfSubject(subject);
       await deleteSubject(apiKey, subject);
       message.success('删除成功');
-      if (selectedSubject === subject) setSelectedSubject(null);
+      if (selectedSubject === subject) {
+        setSelectedSubject(null);
+        setSelectedFaceKeys([]);
+      }
       fetchSubjects();
     } catch {
       message.error('删除失败');
@@ -290,6 +295,7 @@ export function FaceManagementPage() {
 
     if (selectedSubject && selectedSubjectKeys.includes(selectedSubject)) {
       setSelectedSubject(null);
+      setSelectedFaceKeys([]);
     }
     setSelectedSubjectKeys([]);
     await fetchSubjects();
@@ -317,6 +323,7 @@ export function FaceManagementPage() {
   const handleDeleteFace = async (imageId: string) => {
     try {
       await deleteFace(apiKey, imageId);
+      setSelectedFaceKeys((prev) => prev.filter((id) => id !== imageId));
       message.success('删除成功');
       if (selectedSubject) fetchFaces(selectedSubject, facesPage, facesPageSize);
     } catch {
@@ -325,16 +332,34 @@ export function FaceManagementPage() {
   };
 
   const handleBatchDeleteFaces = async () => {
-    if (faces.length === 0) {
-      message.warning('没有可删除的人脸');
+    if (selectedFaceKeys.length === 0) {
+      message.warning('请先选择要删除的人脸');
       return;
     }
     try {
-      await deleteFaces(apiKey, faces.map((f) => f.image_id));
-      message.success('批量删除成功');
+      await deleteFaces(apiKey, selectedFaceKeys);
+      setSelectedFaceKeys([]);
+      message.success(`批量删除成功，共删除 ${selectedFaceKeys.length} 张人脸`);
       if (selectedSubject) fetchFaces(selectedSubject, facesPage, facesPageSize);
     } catch {
       message.error('批量删除失败');
+    }
+  };
+
+  const handleDeleteAllFacesOfSelectedSubject = async () => {
+    if (!selectedSubject) {
+      message.warning('请先选择一个主体');
+      return;
+    }
+
+    try {
+      await deleteAllFacesOfSubject(selectedSubject);
+      setSelectedFaceKeys([]);
+      message.success('已删除当前主体下全部人脸');
+      fetchFaces(selectedSubject, 1, facesPageSize);
+      setFacesPage(1);
+    } catch {
+      message.error('删除全部人脸失败');
     }
   };
 
@@ -632,9 +657,19 @@ export function FaceManagementPage() {
               >
                 <Button icon={<UploadOutlined />}>上传人脸</Button>
               </Upload>
-              <Popconfirm title="确定删除当前页全部人脸？" onConfirm={handleBatchDeleteFaces}>
-                <Button danger size="small">批量删除当前页人脸</Button>
+              <Popconfirm
+                title={`确定删除选中的 ${selectedFaceKeys.length} 张人脸？`}
+                onConfirm={handleBatchDeleteFaces}
+                disabled={selectedFaceKeys.length === 0}
+              >
+                <Button danger size="small" disabled={selectedFaceKeys.length === 0}>
+                  删除选中人脸
+                </Button>
               </Popconfirm>
+              <Popconfirm title="确定删除当前主体下全部人脸？" onConfirm={handleDeleteAllFacesOfSelectedSubject}>
+                <Button danger size="small">删除当前主体全部人脸</Button>
+              </Popconfirm>
+              <Text type="secondary">已选 {selectedFaceKeys.length} 张，可跨页保留</Text>
             </Space>
           <Tabs
             defaultActiveKey="faces"
@@ -648,6 +683,11 @@ export function FaceManagementPage() {
                     columns={faceColumns}
                     rowKey="image_id"
                     loading={facesLoading}
+                    rowSelection={{
+                      selectedRowKeys: selectedFaceKeys,
+                      preserveSelectedRowKeys: true,
+                      onChange: (keys) => setSelectedFaceKeys(keys.map(String)),
+                    }}
                     pagination={{
                       current: facesPage,
                       pageSize: facesPageSize,

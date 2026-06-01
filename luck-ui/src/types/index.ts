@@ -67,6 +67,21 @@ export interface RecognitionResult {
     y_min: number;
   };
   landmarks?: number[][];
+  front_face_check?: {
+    passed: boolean;
+    mode: string;
+    thresholds?: {
+      max_yaw: number;
+      max_pitch: number;
+      max_roll: number;
+    };
+    actual?: {
+      pitch: number;
+      roll: number;
+      yaw: number;
+    };
+    reasons?: string[];
+  };
   subjects?: {
     similarity: number;
     subject: string;
@@ -74,6 +89,11 @@ export interface RecognitionResult {
 }
 
 export interface RecognizeResponse {
+  result: RecognitionResult[];
+  plugins_versions?: Record<string, string>;
+}
+
+export interface FrontFaceCheckResponse {
   result: RecognitionResult[];
   plugins_versions?: Record<string, string>;
 }

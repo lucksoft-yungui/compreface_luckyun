@@ -23,9 +23,10 @@ import com.exadel.frs.commonservice.sdk.faces.feign.dto.PluginsVersions;
 import com.exadel.frs.core.trainservice.dto.FacesDetectionResponseDto;
 import com.exadel.frs.core.trainservice.dto.FacesRecognitionResponseDto;
 import com.exadel.frs.core.trainservice.dto.VerifyFacesResultDto;
+import org.mapstruct.Builder;
 import org.mapstruct.Mapper;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", builder = @Builder(disableBuilder = true))
 public interface FacesMapper {
 
     FacesDetectionResponseDto toFacesDetectionResponseDto(FindFacesResponse facesResponse);

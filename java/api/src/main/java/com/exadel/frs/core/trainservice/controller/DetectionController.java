@@ -32,8 +32,11 @@ import static com.exadel.frs.core.trainservice.system.global.Constants.STATUS_DE
 import static com.exadel.frs.core.trainservice.system.global.Constants.X_FRS_API_KEY_HEADER;
 import com.exadel.frs.core.trainservice.dto.Base64File;
 import com.exadel.frs.core.trainservice.dto.FacesDetectionResponseDto;
+import com.exadel.frs.core.trainservice.dto.FrontFaceDetectionResponseDto;
 import com.exadel.frs.core.trainservice.dto.ProcessImageParams;
 import com.exadel.frs.core.trainservice.service.FaceProcessService;
+import com.exadel.frs.core.trainservice.service.FrontFaceCheckMode;
+import com.exadel.frs.core.trainservice.service.FrontFaceCheckService;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiImplicitParams;
 import io.swagger.annotations.ApiParam;
@@ -56,6 +59,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class DetectionController {
 
     private final FaceProcessService detectionService;
+    private final FrontFaceCheckService frontFaceCheckService;
 
     @PostMapping(value = "/detection/detect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ApiImplicitParams({
@@ -133,5 +137,109 @@ public class DetectionController {
                 .build();
 
         return (FacesDetectionResponseDto) detectionService.processImage(processImageParams);
+    }
+
+    @PostMapping(value = "/detection/front-face", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ApiImplicitParams({
+            @ApiImplicitParam(
+                    name = X_FRS_API_KEY_HEADER,
+                    dataTypeClass = String.class,
+                    paramType = "header",
+                    value = "Api key of application and model",
+                    required = true)
+    })
+    public FrontFaceDetectionResponseDto checkFrontFace(
+            @ApiParam(value = IMAGE_FILE_DESC, required = true)
+            @RequestParam
+            final MultipartFile file,
+            @ApiParam(value = LIMIT_DESC, example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(defaultValue = LIMIT_DEFAULT_VALUE, required = false)
+            @Min(value = 0, message = LIMIT_MIN_DESC)
+            final Integer limit,
+            @ApiParam(value = DET_PROB_THRESHOLD_DESC, example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(value = DET_PROB_THRESHOLD, required = false)
+            final Double detProbThreshold,
+            @ApiParam(value = FACE_PLUGINS_DESC)
+            @RequestParam(value = FACE_PLUGINS, required = false, defaultValue = "")
+            final String facePlugins,
+            @ApiParam(value = STATUS_DESC)
+            @RequestParam(value = STATUS, required = false, defaultValue = STATUS_DEFAULT_VALUE)
+            final Boolean status,
+            @ApiParam(value = "正脸校验模式，可选 lenient 或 strict，默认 lenient")
+            @RequestParam(value = "mode", required = false, defaultValue = "lenient")
+            final String mode,
+            @ApiParam(value = "可选，自定义最大 yaw 阈值；传入后优先于模式默认值", example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(value = "max_yaw", required = false)
+            final Double maxYaw,
+            @ApiParam(value = "可选，自定义最大 pitch 阈值；传入后优先于模式默认值", example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(value = "max_pitch", required = false)
+            final Double maxPitch,
+            @ApiParam(value = "可选，自定义最大 roll 阈值；传入后优先于模式默认值", example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(value = "max_roll", required = false)
+            final Double maxRoll
+    ) {
+        return frontFaceCheckService.checkFrontFace(
+                file,
+                limit,
+                detProbThreshold,
+                facePlugins,
+                status,
+                FrontFaceCheckMode.fromValue(mode),
+                maxYaw,
+                maxPitch,
+                maxRoll
+        );
+    }
+
+    @PostMapping(value = "/detection/front-face", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ApiImplicitParams({
+            @ApiImplicitParam(
+                    name = X_FRS_API_KEY_HEADER,
+                    dataTypeClass = String.class,
+                    paramType = "header",
+                    value = "Api key of application and model",
+                    required = true)
+    })
+    public FrontFaceDetectionResponseDto checkFrontFaceBase64(
+            @ApiParam(value = LIMIT_DESC, example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(defaultValue = LIMIT_DEFAULT_VALUE, required = false)
+            @Min(value = 0, message = LIMIT_MIN_DESC)
+            final Integer limit,
+            @ApiParam(value = DET_PROB_THRESHOLD_DESC, example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(value = DET_PROB_THRESHOLD, required = false)
+            final Double detProbThreshold,
+            @ApiParam(value = FACE_PLUGINS_DESC)
+            @RequestParam(value = FACE_PLUGINS, required = false, defaultValue = "")
+            final String facePlugins,
+            @ApiParam(value = STATUS_DESC)
+            @RequestParam(value = STATUS, required = false, defaultValue = STATUS_DEFAULT_VALUE)
+            final Boolean status,
+            @ApiParam(value = "正脸校验模式，可选 lenient 或 strict，默认 lenient")
+            @RequestParam(value = "mode", required = false, defaultValue = "lenient")
+            final String mode,
+            @ApiParam(value = "可选，自定义最大 yaw 阈值；传入后优先于模式默认值", example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(value = "max_yaw", required = false)
+            final Double maxYaw,
+            @ApiParam(value = "可选，自定义最大 pitch 阈值；传入后优先于模式默认值", example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(value = "max_pitch", required = false)
+            final Double maxPitch,
+            @ApiParam(value = "可选，自定义最大 roll 阈值；传入后优先于模式默认值", example = NUMBER_VALUE_EXAMPLE)
+            @RequestParam(value = "max_roll", required = false)
+            final Double maxRoll,
+            @Valid
+            @RequestBody
+            final Base64File request
+    ) {
+        return frontFaceCheckService.checkFrontFace(
+                request.getContent(),
+                limit,
+                detProbThreshold,
+                facePlugins,
+                status,
+                FrontFaceCheckMode.fromValue(mode),
+                maxYaw,
+                maxPitch,
+                maxRoll
+        );
     }
 }

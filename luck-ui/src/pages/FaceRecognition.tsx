@@ -18,8 +18,8 @@ import {
   Upload,
 } from 'antd';
 import {
-  ArrowLeftOutlined,
   AimOutlined,
+  ArrowLeftOutlined,
   InboxOutlined,
   ManOutlined,
   NodeIndexOutlined,
@@ -29,6 +29,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { getModels } from '../api/admin';
 import { getFaceImageUrl, getFaces, recognize } from '../api/recognition';
+import { FaceOverlay, type PreviewSize } from '../components/FaceOverlay';
 import { compressImage } from '../utils/compress';
 import type { Face, Model, RecognitionResult } from '../types';
 
@@ -42,13 +43,6 @@ interface RecognitionCandidate {
   similarity: number;
   gender: string;
   genderProbability: number | null;
-}
-
-interface PreviewSize {
-  naturalWidth: number;
-  naturalHeight: number;
-  width: number;
-  height: number;
 }
 
 export function FaceRecognitionPage() {
@@ -184,7 +178,6 @@ export function FaceRecognitionPage() {
 
     return false;
   };
-
   const candidateRows = useMemo<RecognitionCandidate[]>(() => {
     const threshold = similarityThreshold / 100;
     return results
@@ -205,79 +198,6 @@ export function FaceRecognitionPage() {
   useEffect(() => {
     setActiveCandidateKey(candidateRows[0]?.key);
   }, [candidateRows]);
-
-  const renderPose = (face: RecognitionResult, centerX: number, centerY: number, sizeInfo: PreviewSize) => {
-    if (!showPose || !face.pose) return null;
-
-    const size = 70;
-    const pitch = face.pose.pitch * Math.PI / 180;
-    const yaw = -(face.pose.yaw * Math.PI / 180);
-    const roll = face.pose.roll * Math.PI / 180;
-    const xAxisX = size * (Math.cos(yaw) * Math.cos(roll)) + centerX;
-    const xAxisY = size * (Math.cos(pitch) * Math.sin(roll) + Math.cos(roll) * Math.sin(pitch) * Math.sin(yaw)) + centerY;
-    const yAxisX = size * (-Math.cos(yaw) * Math.sin(roll)) + centerX;
-    const yAxisY = size * (Math.cos(pitch) * Math.cos(roll) - Math.sin(pitch) * Math.sin(yaw) * Math.sin(roll)) + centerY;
-    const zAxisX = size * Math.sin(yaw) + centerX;
-    const zAxisY = size * (-Math.cos(yaw) * Math.sin(pitch)) + centerY;
-
-    return (
-      <svg style={{ position: 'absolute', inset: 0, width: sizeInfo.width, height: sizeInfo.height, pointerEvents: 'none' }}>
-        <line x1={centerX} y1={centerY} x2={xAxisX} y2={xAxisY} stroke="#ff4d4f" strokeWidth="4" />
-        <line x1={centerX} y1={centerY} x2={yAxisX} y2={yAxisY} stroke="#52c41a" strokeWidth="4" />
-        <line x1={centerX} y1={centerY} x2={zAxisX} y2={zAxisY} stroke="#1677ff" strokeWidth="4" />
-      </svg>
-    );
-  };
-
-  const renderFaceOverlay = (faces: RecognitionResult[], sizeInfo: PreviewSize) => {
-    if (sizeInfo.width === 0 || sizeInfo.height === 0) return null;
-
-    const scaleX = sizeInfo.naturalWidth ? sizeInfo.width / sizeInfo.naturalWidth : 1;
-    const scaleY = sizeInfo.naturalHeight ? sizeInfo.height / sizeInfo.naturalHeight : 1;
-
-    return faces.map((face, index) => {
-      const box = face.box;
-      const left = box.x_min * scaleX;
-      const top = box.y_min * scaleY;
-      const width = (box.x_max - box.x_min) * scaleX;
-      const height = (box.y_max - box.y_min) * scaleY;
-      const centerX = left + width / 2;
-      const centerY = top + height / 2;
-
-      return (
-        <div key={index}>
-          <div
-            style={{
-              position: 'absolute',
-              left,
-              top,
-              width,
-              height,
-              border: '2px solid #13c2c2',
-              borderRadius: 4,
-              pointerEvents: 'none',
-            }}
-          />
-          {showLandmarks && face.landmarks?.map((point, pointIndex) => (
-            <span
-              key={`${index}-${pointIndex}`}
-              style={{
-                position: 'absolute',
-                left: point[0] * scaleX - 2,
-                top: point[1] * scaleY - 2,
-                width: 4,
-                height: 4,
-                borderRadius: '50%',
-                background: '#52c41a',
-                pointerEvents: 'none',
-              }}
-            />
-          ))}
-          {renderPose(face, centerX, centerY, sizeInfo)}
-        </div>
-      );
-    });
-  };
 
   const renderSimilarityTag = (similarity: number | null) => {
     if (similarity === null) return <Tag>-</Tag>;
@@ -382,7 +302,12 @@ export function FaceRecognitionPage() {
                     onLoad={updateImageSize}
                     style={{ maxWidth: '100%', maxHeight: 560, width: 'auto', height: 'auto', display: 'block' }}
                   />
-                  {renderFaceOverlay(results, imageSize)}
+                  <FaceOverlay
+                    faces={results}
+                    sizeInfo={imageSize}
+                    showLandmarks={showLandmarks}
+                    showPose={showPose}
+                  />
                 </div>
               </div>
             )}
@@ -471,10 +396,12 @@ export function FaceRecognitionPage() {
                                       onLoad={(event) => updateMatchedImageSize(primaryFace.image_id, event.currentTarget)}
                                       style={{ maxWidth: '100%', maxHeight: 340, objectFit: 'contain', display: 'block' }}
                                     />
-                                    {renderFaceOverlay(
-                                      matchedDetections[primaryFace.image_id] || [],
-                                      matchedImageSizes[primaryFace.image_id] || { naturalWidth: 0, naturalHeight: 0, width: 0, height: 0 }
-                                    )}
+                                    <FaceOverlay
+                                      faces={matchedDetections[primaryFace.image_id] || []}
+                                      sizeInfo={matchedImageSizes[primaryFace.image_id] || { naturalWidth: 0, naturalHeight: 0, width: 0, height: 0 }}
+                                      showLandmarks={showLandmarks}
+                                      showPose={showPose}
+                                    />
                                   </div>
                                 ) : (
                                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="库中无可展示图片" />

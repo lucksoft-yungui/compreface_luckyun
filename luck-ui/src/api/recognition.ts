@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { userApiUrl } from './config';
-import type { FaceListResponse, RecognizeResponse, Subject } from '../types';
+import type { FaceListResponse, FrontFaceCheckResponse, RecognizeResponse, Subject } from '../types';
 
 function apiHeaders(apiKey: string) {
   return { 'x-api-key': apiKey };
@@ -108,6 +108,36 @@ export async function recognize(
 
   const res = await axios.post<RecognizeResponse>(
     `${userApiUrl('recognition/recognize')}?face_plugins=${facePlugins}&prediction_count=5`,
+    form,
+    { headers: apiHeaders(apiKey) }
+  );
+  return res.data;
+}
+
+export async function checkFrontFace(
+  apiKey: string,
+  file: File,
+  mode: 'lenient' | 'strict' = 'lenient',
+  facePlugins = 'landmarks',
+  thresholds?: {
+    maxYaw?: number;
+    maxPitch?: number;
+    maxRoll?: number;
+  },
+  status = false
+): Promise<FrontFaceCheckResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  const params = new URLSearchParams();
+  params.set('mode', mode);
+  params.set('face_plugins', facePlugins);
+  params.set('status', String(status));
+  if (typeof thresholds?.maxYaw === 'number') params.set('max_yaw', String(thresholds.maxYaw));
+  if (typeof thresholds?.maxPitch === 'number') params.set('max_pitch', String(thresholds.maxPitch));
+  if (typeof thresholds?.maxRoll === 'number') params.set('max_roll', String(thresholds.maxRoll));
+
+  const res = await axios.post<FrontFaceCheckResponse>(
+    `${userApiUrl('detection/front-face')}?${params.toString()}`,
     form,
     { headers: apiHeaders(apiKey) }
   );

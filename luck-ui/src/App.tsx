@@ -10,6 +10,7 @@ import { DashboardPage } from './pages/Dashboard';
 import { ApplicationsPage } from './pages/Applications';
 import { ApplicationDetailPage } from './pages/ApplicationDetail';
 import { FaceManagementPage } from './pages/FaceManagement';
+import { FaceDetectionPage } from './pages/FaceDetection';
 import { FaceRecognitionPage } from './pages/FaceRecognition';
 
 export default function App() {
@@ -41,6 +42,7 @@ export default function App() {
                 <Route path="apps" element={<ApplicationsPage />} />
                 <Route path="apps/:appId" element={<ApplicationDetailPage />} />
                 <Route path="apps/:appId/models/:modelId/faces" element={<FaceManagementPage />} />
+                <Route path="apps/:appId/models/:modelId/detect" element={<FaceDetectionPage />} />
                 <Route path="apps/:appId/models/:modelId/recognize" element={<FaceRecognitionPage />} />
               </Route>
               <Route path="*" element={<LoginPage />} />
